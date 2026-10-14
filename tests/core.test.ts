@@ -1,0 +1,8 @@
+import {test} from 'node:test';
+import {strict as a} from 'node:assert';
+import {noiseRadius,NoiseSystem,MotherAI,fresh,caught,hidingChance,ending} from '../src/core/game';
+test('milestone 1: movement produces distinct noise radii',()=>{a.equal(noiseRadius.crouch,1);a.equal(noiseRadius.walk,4);a.equal(noiseRadius.run,9);});
+test('milestone 2: only audible sounds are investigated and hiding ends a chase',()=>{const n=new NoiseSystem();const ai=new MotherAI([{x:0,z:0}]);ai.position={x:0,z:0};ai.grace=0;n.emit({x:10,z:0},4);ai.tick(1.1,{x:20,z:0},1,false,n,()=>false,(_,b)=>b,[]);a.equal(ai.state,'Patrol');n.emit({x:2,z:0},4);ai.tick(1.1,{x:20,z:0},1,false,n,()=>false,(_,b)=>b,[]);a.equal(ai.state,'Investigate');ai.state='Chase';ai.tick(3.1,{x:20,z:0},1,true,new NoiseSystem(),()=>false,(_,b)=>b,[{x:4,z:0}]);a.equal(ai.state,'Search');});
+test('milestone 3: catch retains inventory and checkpoint; reuse increases risk',()=>{const s=fresh();s.night=2;s.items.push('fuse');s.checkpoint={x:-8,z:8};caught(s);a.equal(s.lives,1);caught(s);a.equal(s.lives,2);a.equal(s.resets,1);a.ok(s.items.includes('fuse'));a.deepEqual(s.checkpoint,{x:-8,z:8});a.equal(hidingChance(1),.3);a.equal(hidingChance(2),.6);a.ok(hidingChance(3)>.89);});
+test('milestone 4: ringer attracts a listener outside vibration range',()=>{const n=new NoiseSystem();n.emit({x:0,z:0},noiseRadius.vibrate);a.equal(n.heard({x:6,z:0}),undefined);n.emit({x:0,z:0},noiseRadius.ring);a.equal(n.heard({x:6,z:0})?.radius,12);});
+test('milestone 7: three endings are reachable',()=>{a.equal(ending(['saveBoth','daleSafe'],['authentic']),'dawn');a.equal(ending(['saveRowan'],[]),'hollow');a.equal(ending(['wrongTrust'],[]),'guest');});

@@ -1,0 +1,3 @@
+import type {Save} from './game';
+export function canAdvance(s:Save){if(s.night===1)return s.evidence.includes('ledger')&&s.items.includes('cellar-key');if(s.night===2)return s.flags.includes('tapePlayed')&&s.items.includes('music-box-key')&&s.evidence.includes('nursery');if(s.night===3)return s.flags.includes('hiddenOpen')&&s.items.includes('music-box-key');return false;}
+export function findDeduction<D extends {id:string,evidence:string[]}>(ids:string[],a:string,b:string,deductions:D[]){if(a===b||!ids.includes(a)||!ids.includes(b))return null;return deductions.find(d=>d.evidence.includes(a)&&d.evidence.includes(b))??null;}
