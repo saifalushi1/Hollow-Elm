@@ -19,7 +19,7 @@ WASD move; mouse look; Shift sneak; Space run; C/Ctrl crouch; E interact/hide; h
 
 ## Included
 
-Prologue contact replies and a two-minute drive, three connected night chapters, hearing-based AI, LOS and waypoint routing, hiding risk, two candle lives, catch checkpoints with retained items, six inventory slots, locks, repair and code puzzles, noise traps, flashlight battery, all four phone apps, eight evidence cards, linked deductions, rescue, a timed woods escape, three final dialogue prompts and three endings, settings, subtitles, synthesized audio, and save/continue.
+Prologue contact replies and a 10-second drive, three connected night chapters, hearing-based AI, LOS and waypoint routing, hiding risk, two candle lives, catch checkpoints with retained items, six inventory slots, locks, repair and code puzzles, noise traps, flashlight battery, all four phone apps, eight evidence cards, linked deductions, rescue, a timed woods escape, three final dialogue prompts and three endings, settings, subtitles, synthesized audio, and save/continue.
 
 Story data: `src/story/script.json`. Core mechanics: `src/core/`. World kit: `src/world.ts`. Audio: `src/audio.ts`. Asset register: `public/assets/ASSETS.md`.
 
