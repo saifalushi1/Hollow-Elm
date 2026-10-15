@@ -3,6 +3,7 @@ import {strict as a} from 'node:assert';
 import * as T from 'three';
 import {World} from '../src/world';
 import {DoorModel} from '../src/models/door';
+import {createRoomKit} from '../src/models/room-kit';
 import {createPantry} from '../src/models/pantry';
 import {slideMove} from '../src/core/movement';
 const mats=Object.fromEntries(['wood','cream','metal','dark','trim','cloth','glass'].map(n=>[n,new T.MeshStandardMaterial()]));
@@ -38,4 +39,9 @@ test('enemy-free traversal reaches every clue and closet on all floors through a
 
 test('every interior mesh has finite nonempty geometry and assigned materials',()=>{
  const w=new World(new T.Scene(),false);for(let n=1;n<=3;n++){w.build(n);let count=0;w.group.traverse(o=>{if(!(o instanceof T.Mesh))return;count++;const positions=o.geometry.getAttribute('position');a.ok(positions&&positions.count>0);for(const v of positions.array)a.ok(Number.isFinite(v));a.ok(o.material);o.geometry.computeBoundingBox();a.ok(o.geometry.boundingBox&&!o.geometry.boundingBox.isEmpty());});a.ok(count>400);a.ok(w.spots.every(s=>!s.label.includes('curtain')));}
+});
+
+test('all sink assemblies leave full doorway approaches clear',()=>{
+ const entrances=[[-4,-2.2,-1.25,1.25],[2.2,4,-1.25,1.25],[-1.25,1.25,-4,-2.2],[-1.25,1.25,2.2,4]];
+ for(const room of ['Kitchen','Scullery','Bathroom']){const kit=createRoomKit(room,mats),sink=kit.getObjectByName('sink-unit')!;a.ok(sink);const bounds=new T.Box3().setFromObject(sink);for(const [minX,maxX,minZ,maxZ] of entrances){const approach=new T.Box3(new T.Vector3(minX,0,minZ),new T.Vector3(maxX,2,maxZ));a.equal(bounds.intersectsBox(approach),false,room+' sink blocks an entrance');}a.ok(bounds.min.z> -3.9,'sink stays inside the wall');}
 });
