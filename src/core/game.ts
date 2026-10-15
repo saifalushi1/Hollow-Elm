@@ -31,7 +31,7 @@ export class MotherAI{
  const finish=()=>{const destination=this.scare.finish(player,scareNavigation,this.rng);if(destination){this.position=destination;this.state='Investigate';this.target={...player};this.timer=0;this.lost=0;this.hearTimer=0;this.grace=3;return true;}return false;};
  if(this.scare.shouldVanish(this.position,player,hidden)&&finish())return;
  const dest=path(this.position,player),length=distance(this.position,dest);
- if(length>.02){const step=Math.min(length,RUSH_SPEED*dt,Math.max(0,d-VANISH_DISTANCE));this.angle=Math.atan2(dest.x-this.position.x,dest.z-this.position.z);this.position.x+=(dest.x-this.position.x)/length*step;this.position.z+=(dest.z-this.position.z)/length*step;}
+ if(length>.001){const step=Math.min(length,RUSH_SPEED*dt,Math.max(0,d-VANISH_DISTANCE));this.angle=Math.atan2(dest.x-this.position.x,dest.z-this.position.z);this.position.x+=(dest.x-this.position.x)/length*step;this.position.z+=(dest.z-this.position.z)/length*step;}
  if(distance(this.position,player)<=VANISH_DISTANCE+.02)finish();
  return; // The rush is a scare, never a damaging catch.
  }
@@ -39,11 +39,11 @@ export class MotherAI{
  this.grace=Math.max(0,this.grace-dt);this.hearTimer+=dt;const d=distance(this.position,player);const sees=!hidden&&d<8&&los(this.position,player)&&this.grace===0;
  if(sees){this.state='Chase';this.target={...player};this.lost=0;}
  if(this.hearTimer>=1){this.hearTimer=0;const n=noise.heard(this.position);if(n&&this.state!=='Chase'&&this.grace===0){this.state=n.radius>=9&&distance(this.position,n.position)<3&&!hidden?'Chase':'Investigate';this.target={...n.position};this.timer=0;}}
- if(this.state==='Chase'){if(sees)this.target={...player};else this.lost+=dt;if(this.lost>3){this.state='Search';this.searchSpots=[...spots].sort((a,b)=>distance(this.position,a)-distance(this.position,b)).slice(0,3);this.searchIndex=0;this.target={...(this.searchSpots[0]??this.route[0])};this.timer=0;}if(!hidden&&d<.65&&this.grace===0)this.state='Catch';}
+ if(this.state==='Chase'){if(sees)this.target={...player};else this.lost+=dt;if(this.lost>1.8){this.state='Search';this.searchSpots=[...spots].sort((a,b)=>distance(this.position,a)-distance(this.position,b)).slice(0,3);this.searchIndex=0;this.target={...(this.searchSpots[0]??this.route[0])};this.timer=0;}if(!hidden&&d<.65&&this.grace===0)this.state='Catch';}
  if(this.state==='Patrol'&&distance(this.position,this.target)<.3){this.timer+=dt;if(this.timer>3){this.waypoint=(this.waypoint+1)%this.route.length;this.target={...this.route[this.waypoint]};this.timer=0;}}
  if(this.state==='Investigate'&&distance(this.position,this.target)<.3){this.timer+=dt;if(this.timer>5+this.rng.next()*3){this.state='Patrol';this.target={...this.route[this.waypoint]};this.timer=0;}}
  if(this.state==='Search'&&distance(this.position,this.target)<.4){this.timer+=dt;if(this.timer>2){this.searchIndex++;this.timer=0;if(this.searchIndex>=this.searchSpots.length){this.state='Patrol';this.target={...this.route[this.waypoint]};}else this.target={...this.searchSpots[this.searchIndex]};}}
  if(this.state==='Catch')return;
- const dest=path(this.position,this.target);const delta=distance(this.position,dest);const speed=(this.state==='Chase'?[2.2,2.6,3][Math.min(2,night-1)]:1.2)*(assist?.65:1);if(delta>.08){const step=Math.min(delta,speed*dt);this.angle=Math.atan2(dest.x-this.position.x,dest.z-this.position.z);this.position.x+=(dest.x-this.position.x)/delta*step;this.position.z+=(dest.z-this.position.z)/delta*step;}
+ const dest=path(this.position,this.target);const delta=distance(this.position,dest);const speed=(this.state==='Chase'?[2.2,2.6,3][Math.min(2,night-1)]:1.2)*(assist?.65:1);if(delta>.001){const step=Math.min(delta,speed*dt);this.angle=Math.atan2(dest.x-this.position.x,dest.z-this.position.z);this.position.x+=(dest.x-this.position.x)/delta*step;this.position.z+=(dest.z-this.position.z)/delta*step;}
  }
 }

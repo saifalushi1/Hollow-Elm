@@ -27,6 +27,10 @@ Story data: `src/story/script.json`. Core mechanics: `src/core/`. World kit: `sr
 
 Run `npm run dev` and open the printed localhost URL in your browser. No ChatGPT hosting or account is needed for local play.
 
+Furniture has solid collision and Marrow routes around it. Press E at a wardrobe to enter; movement locks to its interior until you press E again to leave. A narrow slit limits your view. Sprinting lasts roughly 20 seconds from full stamina, with recovery while walking and faster recovery while standing. Breaking line of sight for about two seconds lets a chase become a search.
+
+A compact tutorial appears on first house entry. Settings save immediately and again on Save & return; film grain can be disabled and stays off after reload. Original synthesized music plays quietly in the background. Marrow's face distorts as she approaches, and a catch shows a brief close-up before checkpoint recovery. Reduced flashing/shake mode uses a steady close-up without the lunge.
+
 After the initial 30-second safety period, Marrow has a 22% chance every eight seconds to rush when she can see you from 3.5–14 metres away. Her synthesized shriek intensifies with proximity. She disappears 1.4 metres before contact and relocates to a clear, reachable position at least 10 metres away, then resumes investigating and can walk back through doors. Scares have a 75–120 second cooldown and a limit of four per saved game. They do not run during the woods finale or begin while you are hidden. Camera height stays steady during movement and scares.
 
 ## Status

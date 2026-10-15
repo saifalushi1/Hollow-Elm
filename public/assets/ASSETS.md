@@ -12,6 +12,7 @@ All assets are bundled and require no external runtime requests. No assets, name
 | `font-1.ttf`–`font-3.ttf` | Cormorant Garamond via Google Fonts | SIL Open Font License 1.1; bundled `Cormorant-OFL.txt` | Serif title/UI |
 | `font-4.ttf`–`font-7.ttf` | DM Sans via Google Fonts | SIL Open Font License 1.1; bundled `DM-Sans-OFL.txt` | Sans UI |
 | All sounds | Original Web Audio synthesis in `src/audio.ts` | CC0 1.0 | No recorded audio files; synthesized oscillators, noise, reverb |
+| Proximity face and catch close-up | Original geometry in `src/marrow-face.ts` | CC0 1.0 | Procedural skull, eyes, jaw, teeth, wrinkles and veins; no external images or gore |
 | Story, messages, evidence | Original text in `src/story/script.json` based on supplied brief | Original commissioned content | Investigation and dialogue |
 
 Third-party code: Three.js (MIT), Vite (MIT), TypeScript (Apache 2.0), meshoptimizer (MIT), glTF Transform (MIT), tsx (MIT). See installed package license files and lockfile for exact dependency versions.

@@ -1,9 +1,11 @@
 import * as T from 'three';
 import { Point } from './core/game';
+import {NavigationGrid,segmentHitsBox} from './core/navigation';
 export type Target={id:string,label:string,kind:string,position:T.Vector3,mesh:T.Object3D,room:string};
-export type Wall={x:number,z:number,w:number,d:number,door?:string};
+export type Wall={x:number,z:number,w:number,d:number,door?:string,furniture?:boolean,top?:number};
 const names=[['Study','Hall','Living room','Pantry','Kitchen','Scullery','Garden door','Barn passage','Sitting room'],['Nursery','Landing','Bedroom','Bathroom','Gallery','Attic stairs','Linen room','Attic','Trunk room'],['Coal room','Cellar stairs','Preserves','Crates','Shelves','Hidden room','Old boiler','Store room','Locked room']];
 export class World{
+ navigation?:NavigationGrid;
  group=new T.Group();colliders:Wall[]=[];targets:Target[]=[];doors=new Map<string,{mesh:T.Mesh,open:boolean,wall:Wall}>();spots:Target[]=[];roomCenters:Point[]=[];materials:Record<string,T.MeshStandardMaterial>={};floor=1;exterior=false;
  constructor(public scene:T.Scene,public useAssets=true){this.scene.add(this.group);this.createMaterials();}
  createMaterials(){
@@ -13,8 +15,15 @@ export class World{
  this.materials.glow=new T.MeshStandardMaterial({color:0xffc77f,emissive:0xffa33d,emissiveIntensity:2});
  if(this.useAssets){const loader=new T.TextureLoader();for(const [property,file]of [['map','wood-albedo.jpg'],['normalMap','wood-normal.jpg'],['roughnessMap','wood-roughness.jpg']]){const t=loader.load('/assets/'+file);t.wrapS=t.wrapT=T.RepeatWrapping;t.repeat.set(2,3);if(property==='map')t.colorSpace=T.SRGBColorSpace;(this.materials.wood as unknown as Record<string,unknown>)[property]=t;}this.materials.wood.color.setHex(0x8d9a83);}
  }
- box(w:number,h:number,d:number,x:number,y:number,z:number,mat='wood',parent=this.group){const m=new T.Mesh(new T.BoxGeometry(w,h,d),this.materials[mat]);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;}
- clear(){while(this.group.children.length){const o=this.group.children[0];o.traverse(n=>{if(n instanceof T.Mesh)n.geometry.dispose();});this.group.remove(o);}this.colliders=[];this.targets=[];this.spots=[];this.roomCenters=[];this.doors.clear();}
+ box(w:number,h:number,d:number,x:number,y:number,z:number,mat='wood',parent=this.group,solid=false){const m=new T.Mesh(new T.BoxGeometry(w,h,d),this.materials[mat]);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);if(parent===this.group&&!this.exterior&&(solid||w>=.3&&d>=.3)&&(y+h/2)>.18&&(y-h/2)<1.7){this.colliders.push({x,z,w,d,furniture:true,top:y+h/2});this.navigation=undefined;}return m;}
+ registerProp(root:T.Object3D){root.updateWorldMatrix(true,true);root.traverse(o=>{if(!(o instanceof T.Mesh))return;const box=new T.Box3().setFromObject(o),size=box.getSize(new T.Vector3()),center=box.getCenter(new T.Vector3());if(size.x>.3&&size.z>.3&&box.max.y>.18&&box.min.y<1.7)this.colliders.push({x:center.x,z:center.z,w:size.x,d:size.z,furniture:true,top:box.max.y});});this.navigation=undefined;}
+ hidingApproach(t:Target){return {x:t.position.x,z:t.position.z-.95};}
+ solidAt(x:number,z:number,r=.25,ignoreDoors=false,sight=false){return this.colliders.some(w=>(!w.door||!ignoreDoors&&!this.doors.get(w.door)!.open)&&(!sight||!w.furniture||(w.top??3)>1.25)&&Math.abs(x-w.x)<w.w/2+r&&Math.abs(z-w.z)<w.d/2+r);}
+ nav(){return this.navigation??=new NavigationGrid((x,z)=>!this.solidAt(x,z,.27,true));}
+ walkablePoint(p:Point){const id=this.nav().nearest(p);return id<0?p:this.nav().point(id);}
+ segmentClear(a:Point,b:Point,r=.25){return !this.colliders.some(w=>!w.door&&segmentHitsBox(a,b,w,r));}
+ canInteract(a:Point,t:Target){const p=t.kind==='hide'?this.hidingApproach(t):t.position,d=Math.hypot(p.x-a.x,p.z-a.z),length=Math.max(0,d-.6);return this.los(a,{x:a.x+(p.x-a.x)*length/(d||1),z:a.z+(p.z-a.z)*length/(d||1)});}
+ clear(){while(this.group.children.length){const o=this.group.children[0];o.traverse(n=>{if(n instanceof T.Mesh)n.geometry.dispose();});this.group.remove(o);}this.navigation=undefined;this.colliders=[];this.targets=[];this.spots=[];this.roomCenters=[];this.doors.clear();}
  roomAt(p:Point){const col=Math.max(0,Math.min(2,Math.round(p.x/8)+1)),row=Math.max(0,Math.min(2,Math.round(p.z/8)+1));return this.exterior?'Elm Wood':names[Math.min(2,this.floor-1)][row*3+col];}
  wall(w:number,d:number,x:number,z:number){this.box(w,3.25,d,x,1.625,z,'plaster');this.box(w,.18,d+.03,x,.12,z,'trim');this.box(w,.12,d+.03,x,3.1,z,'trim');this.colliders.push({x,z,w,d});}
  build(night:number,exterior=false){this.clear();this.floor=night;this.exterior=exterior;
@@ -30,7 +39,7 @@ export class World{
  this.box(.45,.9,.38,x+3,1.8,z+3,'wood');this.box(.18,.35,.15,x+3,1.95,z+2.78,'glow');
  const light=new T.PointLight(0xffbd73,night===3?2.5:5.5,8,2);light.position.set(x+3,2.1,z+2.6);this.group.add(light);
  const spot=this.addTarget(`hide-${night}-${index}`,night===3?'Hide inside the coal crate':index%2?'Hide behind the curtain':'Hide in the wardrobe','hide',x-2.8,z+2.7,room);
- if(index%2){this.box(1.1,2.7,.12,x-2.8,1.4,z+2.7,'cloth');}else{this.box(1.3,2.65,.8,x-2.8,1.325,z+2.7,'wood');this.box(.04,2.2,.06,x-2.8,1.3,z+2.25,'dark');}this.spots.push(spot);
+ if(index%2){this.box(1.1,2.7,.12,x-2.8,1.4,z+2.48,'cloth',this.group,true);}else{const h=night===3?1.5:2.65;this.box(1.3,h,.08,x-2.8,h/2,z+3.1,'wood',this.group,true);for(const dx of [-.61,.61])this.box(.08,h,.8,x-2.8+dx,h/2,z+2.7,'wood',this.group,true);for(const dx of [-.37,.37])this.box(.56,h,.08,x-2.8+dx,h/2,z+2.3,'wood',this.group,true);this.box(1.3,.08,.8,x-2.8,h,z+2.7,'wood');}this.spots.push(spot);
  // Wall lettering is generated in the local kit.
  this.label(room,x,2.55,z-3.65);
  }
@@ -46,23 +55,19 @@ export class World{
  door(id:string,x:number,z:number,vertical:boolean){const wall={x,z,w:vertical?.17:1.9,d:vertical?1.9:.17,door:id};const m=this.box(wall.w,2.6,wall.d,x,1.3,z,'wood');this.colliders.push(wall);this.doors.set(id,{mesh:m,open:true,wall});m.visible=false;this.targets.push({id,label:'Door · tap E fast / hold E quietly',kind:'door',position:new T.Vector3(x,1.3,z),mesh:m,room:''});}
  toggleDoor(id:string){const d=this.doors.get(id)!;d.open=!d.open;d.mesh.visible=!d.open;return d.open;}
  blocked(x:number,z:number,r=.25){if(this.exterior)return false;return this.colliders.some(w=>(!w.door||!this.doors.get(w.door)!.open)&&Math.abs(x-w.x)<w.w/2+r&&Math.abs(z-w.z)<w.d/2+r);}
- canReach(a:Point,b:Point){
- const clear=(p:Point)=>Math.abs(p.x)<11.7&&Math.abs(p.z)<11.7&&!this.colliders.some(w=>!w.door&&Math.abs(p.x-w.x)<w.w/2+.22&&Math.abs(p.z-w.z)<w.d/2+.22);
- if(this.exterior||!clear(a)||!clear(b))return false;
- const segment=(p:Point,q:Point)=>{const length=Math.hypot(q.x-p.x,q.z-p.z);for(let t=0;t<=length;t+=.15)if(!clear({x:p.x+(q.x-p.x)*t/(length||1),z:p.z+(q.z-p.z)*t/(length||1)}))return false;return clear(q);};
- const cell=(p:Point)=>Math.round(p.x/8)+1+(Math.round(p.z/8)+1)*3;
- const start=cell(a),end=cell(b),centers=this.roomCenters;
- if(!centers[start]||!centers[end]||!segment(a,centers[start])||!segment(centers[end],b))return false;
- const queue=[start],seen=new Set(queue);for(let i=0;i<queue.length;i++){const at=queue[i];if(at===end)return true;for(const to of [at-3,at+3,at-1,at+1]){if(to<0||to>=9||seen.has(to)||Math.abs(to-at)===1&&Math.floor(to/3)!==Math.floor(at/3))continue;if(segment(centers[at],centers[to])){seen.add(to);queue.push(to);}}}return false;
- }
+ canReach(a:Point,b:Point){return !this.exterior&&this.nav().route(a,b,(a,b)=>this.segmentClear(a,b)).length>0;}
  relocationSpots(player:Point){
  if(this.exterior)return [];this.group.updateMatrixWorld(true);
  const standingClear=(p:Point)=>{if(this.blocked(p.x,p.z,.4))return false;const body=new T.Box3(new T.Vector3(p.x-.35,.08,p.z-.35),new T.Vector3(p.x+.35,1.65,p.z+.35));return !this.group.children.some(o=>o.visible&&!(o instanceof T.Light)&&body.intersectsBox(new T.Box3().setFromObject(o)));};
  const spots:Point[]=[];for(const room of this.roomCenters)for(const [dx,dz]of [[1.5,0],[-1.5,0],[0,1.5],[1.5,1.5],[-1.5,-1.5]]){const p={x:room.x+dx,z:room.z+dz};if(Math.hypot(p.x-player.x,p.z-player.z)>=10&&standingClear(p)&&this.canReach(p,player)){spots.push(p);break;}}
  const unseen=spots.filter(p=>!this.los(p,player));return unseen.length?unseen:spots;
  }
- los(a:Point,b:Point){const d=Math.hypot(b.x-a.x,b.z-a.z);for(let t=.2;t<d;t+=.2){const x=a.x+(b.x-a.x)*t/d,z=a.z+(b.z-a.z)*t/d;if(this.blocked(x,z,.04))return false;}return true;}
- path(a:Point,b:Point):Point{if(this.los(a,b))return b;const cell=(p:Point)=>({c:Math.max(0,Math.min(2,Math.round(p.x/8)+1)),r:Math.max(0,Math.min(2,Math.round(p.z/8)+1))});const ac=cell(a),bc=cell(b);if(ac.c===bc.c&&ac.r===bc.r)return b;const start=ac.r*3+ac.c,end=bc.r*3+bc.c;const queue=[start],prev=new Map<number,number>();prev.set(start,-1);for(let qi=0;qi<queue.length;qi++){const cur=queue[qi];if(cur===end)break;const c=cur%3,r=Math.floor(cur/3);for(const [dc,dr]of [[0,1],[1,0],[0,-1],[-1,0]]){const nc=c+dc,nr=r+dr;if(nc<0||nc>2||nr<0||nr>2)continue;const next=nr*3+nc;if(!prev.has(next)){prev.set(next,cur);queue.push(next);}}}let next=end;while(prev.get(next)!==start&&prev.get(next)!==-1&&prev.has(next))next=prev.get(next)!;const np={x:(next%3-1)*8,z:(Math.floor(next/3)-1)*8},ap={x:(ac.c-1)*8,z:(ac.r-1)*8};const portal={x:(ap.x+np.x)/2,z:(ap.z+np.z)/2};for(const door of this.doors.values())if(Math.hypot(door.wall.x-portal.x,door.wall.z-portal.z)<.5&&!door.open){door.open=true;door.mesh.visible=false;}if(Math.hypot(a.x-portal.x,a.z-portal.z)<.45)return np;return portal;}
+ los(a:Point,b:Point){const d=Math.hypot(b.x-a.x,b.z-a.z);for(let t=.2;t<d;t+=.2){const x=a.x+(b.x-a.x)*t/d,z=a.z+(b.z-a.z)*t/d;if(this.solidAt(x,z,.04,false,true))return false;}return true;}
+ path(a:Point,b:Point):Point{
+ for(const door of this.doors.values())if(Math.hypot(door.wall.x-a.x,door.wall.z-a.z)<1.4&&!door.open){door.open=true;door.mesh.visible=false;}
+ if(this.segmentClear(a,b))return b;const route=this.nav().route(a,b,(a,b)=>this.segmentClear(a,b));if(!route.length)return a;
+ for(let i=Math.min(6,route.length-1);i>=0;i--)if(Math.hypot(route[i].x-a.x,route[i].z-a.z)>.002&&this.segmentClear(a,route[i]))return route[i];return a;
+ }
  label(text:string,x:number,y:number,z:number){const c=document.createElement('canvas');c.width=512;c.height=128;const ctx=c.getContext('2d')!;ctx.fillStyle='#212e29';ctx.fillRect(0,0,512,128);ctx.strokeStyle='#8b886e';ctx.strokeRect(8,8,496,112);ctx.fillStyle='#c4bb98';ctx.font='30px Georgia';ctx.textAlign='center';ctx.fillText(text.toUpperCase(),256,76);const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;const m=new T.Mesh(new T.PlaneGeometry(1.8,.45),new T.MeshStandardMaterial({map:tex,roughness:1}));m.position.set(x,y,z);this.group.add(m);}
  jar(x:number,y:number,z:number){const m=new T.Mesh(new T.CylinderGeometry(.12,.13,.28,8),this.materials.glass);m.position.set(x,y,z);this.group.add(m);this.box(.25,.04,.25,x,y+.15,z,'metal');}
  clockFace(x:number,y:number,z:number){const m=new T.Mesh(new T.CircleGeometry(.28,32),this.materials.cream);m.position.set(x,y,z);this.group.add(m);this.box(.02,.23,.025,x,y+.08,z+.02,'dark');this.box(.2,.02,.025,x+.08,y,z+.02,'dark');}
