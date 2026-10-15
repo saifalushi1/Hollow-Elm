@@ -9,6 +9,7 @@ export class AudioEngine {
   private volume = 0.65;
   private heartbeat?: ReturnType<typeof setInterval>;
   private pulse = 0;
+  private rushVoice?: {gain:GainNode,low:OscillatorNode,high:OscillatorNode,lfo:OscillatorNode,depth:GainNode,noise:AudioBufferSourceNode,band:BiquadFilterNode};
 
   start() {
     if (this.context) { void this.context.resume(); return; }
@@ -77,5 +78,20 @@ export class AudioEngine {
   photo() { this.noise(0.09, 0.2, 2200); }
   lockFail() { this.noise(0.5, 0.3, 1450); this.tone(650, 0.2, 0.12, 'triangle', 0, 240); }
   tape() { this.noise(0.8, 0.08, 1500); this.tone(280, 1.8, 0.03, 'triangle', 0, 269); }
-  stop() { if (this.heartbeat) clearInterval(this.heartbeat); this.heartbeat = undefined; this.roomTone?.stop(); this.roomTone = undefined; void this.context?.close(); this.context = undefined; this.master = undefined; this.filter = undefined; this.roomGain = undefined; }
+  /** Sustained dissonant shriek; pitch, pulse rate and volume follow proximity. */
+  sprintScare(distance:number|null){
+    if(!this.context||!this.filter)return;const ctx=this.context;
+    if(distance===null){const voice=this.rushVoice;if(!voice)return;this.rushVoice=undefined;voice.gain.gain.setTargetAtTime(0,ctx.currentTime,.025);for(const node of [voice.low,voice.high,voice.lfo,voice.noise])node.stop(ctx.currentTime+.15);voice.low.onended=()=>{for(const node of [voice.low,voice.high,voice.lfo,voice.depth,voice.noise,voice.band,voice.gain])node.disconnect();};return;}
+    if(!this.rushVoice){
+      const gain=ctx.createGain(),low=ctx.createOscillator(),high=ctx.createOscillator(),lfo=ctx.createOscillator(),depth=ctx.createGain(),band=ctx.createBiquadFilter(),noise=ctx.createBufferSource();
+      gain.gain.value=0;low.type='sawtooth';high.type='triangle';band.type='bandpass';band.Q.value=2;
+      const buffer=ctx.createBuffer(1,ctx.sampleRate,ctx.sampleRate),data=buffer.getChannelData(0);for(let i=0;i<data.length;i++)data[i]=Math.random()*2-1;noise.buffer=buffer;noise.loop=true;
+      low.connect(band);high.connect(band);noise.connect(band);band.connect(gain);gain.connect(this.filter);lfo.connect(depth);depth.connect(gain.gain);
+      low.start();high.start();lfo.start();noise.start();this.rushVoice={gain,low,high,lfo,depth,noise,band};
+    }
+    const v=this.rushVoice,near=Math.max(0,Math.min(1,1-distance/14)),now=ctx.currentTime;
+    v.gain.gain.setTargetAtTime(.025+near*.13,now,.07);v.depth.gain.setTargetAtTime(.008+near*.025,now,.08);v.low.frequency.setTargetAtTime(72+near*105,now,.06);v.high.frequency.setTargetAtTime(530+near*720,now,.06);v.lfo.frequency.setTargetAtTime(4+near*10,now,.08);v.band.frequency.setTargetAtTime(650+near*1700,now,.06);
+  }
+  scareVanish(){this.noise(.18,.08,190);this.tone(48,.3,.1,'sine',0,27);}
+  stop() { this.sprintScare(null);if (this.heartbeat) clearInterval(this.heartbeat); this.heartbeat = undefined; this.roomTone?.stop(); this.roomTone = undefined; void this.context?.close(); this.context = undefined; this.master = undefined; this.filter = undefined; this.roomGain = undefined; }
 }

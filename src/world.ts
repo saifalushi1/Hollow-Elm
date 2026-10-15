@@ -46,6 +46,21 @@ export class World{
  door(id:string,x:number,z:number,vertical:boolean){const wall={x,z,w:vertical?.17:1.9,d:vertical?1.9:.17,door:id};const m=this.box(wall.w,2.6,wall.d,x,1.3,z,'wood');this.colliders.push(wall);this.doors.set(id,{mesh:m,open:true,wall});m.visible=false;this.targets.push({id,label:'Door · tap E fast / hold E quietly',kind:'door',position:new T.Vector3(x,1.3,z),mesh:m,room:''});}
  toggleDoor(id:string){const d=this.doors.get(id)!;d.open=!d.open;d.mesh.visible=!d.open;return d.open;}
  blocked(x:number,z:number,r=.25){if(this.exterior)return false;return this.colliders.some(w=>(!w.door||!this.doors.get(w.door)!.open)&&Math.abs(x-w.x)<w.w/2+r&&Math.abs(z-w.z)<w.d/2+r);}
+ canReach(a:Point,b:Point){
+ const clear=(p:Point)=>Math.abs(p.x)<11.7&&Math.abs(p.z)<11.7&&!this.colliders.some(w=>!w.door&&Math.abs(p.x-w.x)<w.w/2+.22&&Math.abs(p.z-w.z)<w.d/2+.22);
+ if(this.exterior||!clear(a)||!clear(b))return false;
+ const segment=(p:Point,q:Point)=>{const length=Math.hypot(q.x-p.x,q.z-p.z);for(let t=0;t<=length;t+=.15)if(!clear({x:p.x+(q.x-p.x)*t/(length||1),z:p.z+(q.z-p.z)*t/(length||1)}))return false;return clear(q);};
+ const cell=(p:Point)=>Math.round(p.x/8)+1+(Math.round(p.z/8)+1)*3;
+ const start=cell(a),end=cell(b),centers=this.roomCenters;
+ if(!centers[start]||!centers[end]||!segment(a,centers[start])||!segment(centers[end],b))return false;
+ const queue=[start],seen=new Set(queue);for(let i=0;i<queue.length;i++){const at=queue[i];if(at===end)return true;for(const to of [at-3,at+3,at-1,at+1]){if(to<0||to>=9||seen.has(to)||Math.abs(to-at)===1&&Math.floor(to/3)!==Math.floor(at/3))continue;if(segment(centers[at],centers[to])){seen.add(to);queue.push(to);}}}return false;
+ }
+ relocationSpots(player:Point){
+ if(this.exterior)return [];this.group.updateMatrixWorld(true);
+ const standingClear=(p:Point)=>{if(this.blocked(p.x,p.z,.4))return false;const body=new T.Box3(new T.Vector3(p.x-.35,.08,p.z-.35),new T.Vector3(p.x+.35,1.65,p.z+.35));return !this.group.children.some(o=>o.visible&&!(o instanceof T.Light)&&body.intersectsBox(new T.Box3().setFromObject(o)));};
+ const spots:Point[]=[];for(const room of this.roomCenters)for(const [dx,dz]of [[1.5,0],[-1.5,0],[0,1.5],[1.5,1.5],[-1.5,-1.5]]){const p={x:room.x+dx,z:room.z+dz};if(Math.hypot(p.x-player.x,p.z-player.z)>=10&&standingClear(p)&&this.canReach(p,player)){spots.push(p);break;}}
+ const unseen=spots.filter(p=>!this.los(p,player));return unseen.length?unseen:spots;
+ }
  los(a:Point,b:Point){const d=Math.hypot(b.x-a.x,b.z-a.z);for(let t=.2;t<d;t+=.2){const x=a.x+(b.x-a.x)*t/d,z=a.z+(b.z-a.z)*t/d;if(this.blocked(x,z,.04))return false;}return true;}
  path(a:Point,b:Point):Point{if(this.los(a,b))return b;const cell=(p:Point)=>({c:Math.max(0,Math.min(2,Math.round(p.x/8)+1)),r:Math.max(0,Math.min(2,Math.round(p.z/8)+1))});const ac=cell(a),bc=cell(b);if(ac.c===bc.c&&ac.r===bc.r)return b;const start=ac.r*3+ac.c,end=bc.r*3+bc.c;const queue=[start],prev=new Map<number,number>();prev.set(start,-1);for(let qi=0;qi<queue.length;qi++){const cur=queue[qi];if(cur===end)break;const c=cur%3,r=Math.floor(cur/3);for(const [dc,dr]of [[0,1],[1,0],[0,-1],[-1,0]]){const nc=c+dc,nr=r+dr;if(nc<0||nc>2||nr<0||nr>2)continue;const next=nr*3+nc;if(!prev.has(next)){prev.set(next,cur);queue.push(next);}}}let next=end;while(prev.get(next)!==start&&prev.get(next)!==-1&&prev.has(next))next=prev.get(next)!;const np={x:(next%3-1)*8,z:(Math.floor(next/3)-1)*8},ap={x:(ac.c-1)*8,z:(ac.r-1)*8};const portal={x:(ap.x+np.x)/2,z:(ap.z+np.z)/2};for(const door of this.doors.values())if(Math.hypot(door.wall.x-portal.x,door.wall.z-portal.z)<.5&&!door.open){door.open=true;door.mesh.visible=false;}if(Math.hypot(a.x-portal.x,a.z-portal.z)<.45)return np;return portal;}
  label(text:string,x:number,y:number,z:number){const c=document.createElement('canvas');c.width=512;c.height=128;const ctx=c.getContext('2d')!;ctx.fillStyle='#212e29';ctx.fillRect(0,0,512,128);ctx.strokeStyle='#8b886e';ctx.strokeRect(8,8,496,112);ctx.fillStyle='#c4bb98';ctx.font='30px Georgia';ctx.textAlign='center';ctx.fillText(text.toUpperCase(),256,76);const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;const m=new T.Mesh(new T.PlaneGeometry(1.8,.45),new T.MeshStandardMaterial({map:tex,roughness:1}));m.position.set(x,y,z);this.group.add(m);}

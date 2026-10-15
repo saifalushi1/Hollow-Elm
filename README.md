@@ -23,6 +23,12 @@ Prologue contact replies and a 10-second drive, three connected night chapters, 
 
 Story data: `src/story/script.json`. Core mechanics: `src/core/`. World kit: `src/world.ts`. Audio: `src/audio.ts`. Asset register: `public/assets/ASSETS.md`.
 
+## Local play and sprint scares
+
+Run `npm run dev` and open the printed localhost URL in your browser. No ChatGPT hosting or account is needed for local play.
+
+After the initial 30-second safety period, Marrow has a 22% chance every eight seconds to rush when she can see you from 3.5–14 metres away. Her synthesized shriek intensifies with proximity. She disappears 1.4 metres before contact and relocates to a clear, reachable position at least 10 metres away, then resumes investigating and can walk back through doors. Scares have a 75–120 second cooldown and a limit of four per saved game. They do not run during the woods finale or begin while you are hidden. Camera height stays steady during movement and scares.
+
 ## Status
 
 This is a playable first build, with placeholder environment and character art. See `VALIDATION.md` for verified mechanics and remaining requirements. The 45–55 minute playtime, 60 fps laptop target, realistic environment pass, baked lightmaps, KTX2 textures, and complete full-run acceptance have not been certified. Chapters can currently be completed faster than the target. No claim is made that the full final brief is complete.

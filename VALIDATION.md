@@ -14,7 +14,7 @@
 - The connected 3×3 modular room kit has nine hiding spots and multiple loops per floor. The complete final detailed farmhouse, exterior barn/shed, realistic glTF environment, realistic character art, physically rearranged furniture, and proper occlusion culling still need an art/gameplay pass.
 - Room partitions have collision; furniture does not yet block movement. World routing is a waypoint graph; stair/exit transitions rebuild the next floor.
 - Story and hints are JSON. A field reminder appears after three minutes without puzzle progress; the in-world hints are displayed with evidence and chapter notes. Timings need playtest tuning.
-- No baked lightmaps or KTX2 texture pipeline. Fog and CSS grain/vignette approximate the requested atmosphere. There are no scripted graphical jump scares or graphic injuries.
+- No baked lightmaps or KTX2 texture pipeline. Fog and CSS grain/vignette approximate the requested atmosphere. Random sprint-and-vanish scares are capped at four per game, with no flashing or camera bob. There are no graphic injuries.
 - Assist Mode currently slows Marrow and extends starting safety, rather than adding extra checkpoint locations.
 - Catches return to the same night checkpoint and retain items. Night reset counters do not yet distinguish consecutive failed nights from successful chapters.
 
