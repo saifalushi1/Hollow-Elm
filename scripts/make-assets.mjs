@@ -6,6 +6,7 @@ import {ALL_EXTENSIONS} from '@gltf-transform/extensions';
 import {meshopt} from '@gltf-transform/functions';
 import {MeshoptEncoder,MeshoptDecoder} from 'meshoptimizer';
 import fs from 'node:fs/promises';
+import {createPantry} from '../src/models/pantry.ts';
 globalThis.FileReader=class{readAsArrayBuffer(blob){blob.arrayBuffer().then(result=>{this.result=result;this.onloadend?.();});}readAsDataURL(blob){blob.arrayBuffer().then(result=>{this.result='data:'+blob.type+';base64,'+Buffer.from(result).toString('base64');this.onloadend?.();});}};
 const root=new THREE.Bone();root.name='root';
 const spine=new THREE.Bone();spine.name='spine';spine.position.set(0,.95,0);root.add(spine);
@@ -25,5 +26,5 @@ function anim(name,duration,amount){const ts=[0,duration/2,duration];const out=[
 const clips=[anim('idle',3,.025),anim('walk',1.4,.14),anim('search',2,.055),anim('chase',.75,.26),anim('catch',.9,.45)];
 const raw=await new GLTFExporter().parseAsync(group,{binary:true,animations:clips});await MeshoptEncoder.ready;await MeshoptDecoder.ready;const io=new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({'meshopt.encoder':MeshoptEncoder,'meshopt.decoder':MeshoptDecoder});const doc=await io.readBinary(new Uint8Array(raw));await doc.transform(meshopt({encoder:MeshoptEncoder,level:'medium'}));await io.write('public/assets/mother-marrow-placeholder.glb',doc);
 // Original kit prop: clock, four jars, desk and evidence surface.
-const kit=new THREE.Group();for(let i=0;i<4;i++){const jar=new THREE.Mesh(new THREE.CylinderGeometry(.12,.13,.28,12),new THREE.MeshStandardMaterial({color:0x374f43,roughness:.3}));jar.position.set(i*.35,1,0);kit.add(jar);}const desk=new THREE.Mesh(new THREE.BoxGeometry(1.6,.1,.8),new THREE.MeshStandardMaterial({color:0x65553d,roughness:.8}));desk.position.set(.5,.8,0);kit.add(desk);const rawKit=await new GLTFExporter().parseAsync(kit,{binary:true});const kd=await io.readBinary(new Uint8Array(rawKit));await kd.transform(meshopt({encoder:MeshoptEncoder,level:'medium'}));await io.write('public/assets/preserves-kit.glb',kd);
+const kit=createPantry({wood:new THREE.MeshStandardMaterial({color:0x65553d,roughness:.85}),trim:new THREE.MeshStandardMaterial({color:0x354138,roughness:.85}),metal:new THREE.MeshStandardMaterial({color:0x837c56,roughness:.45,metalness:.5}),cream:new THREE.MeshStandardMaterial({color:0xb6ad87,roughness:.75}),glass:new THREE.MeshStandardMaterial({color:0x314b46,roughness:.3})});const rawKit=await new GLTFExporter().parseAsync(kit,{binary:true});const kd=await io.readBinary(new Uint8Array(rawKit));await kd.transform(meshopt({encoder:MeshoptEncoder,level:'medium'}));await io.write('public/assets/preserves-kit.glb',kd);
 console.log('Generated original meshopt-compressed rig and preserves kit.');

@@ -1,12 +1,16 @@
 import * as T from 'three';
 import { Point } from './core/game';
 import {NavigationGrid,segmentHitsBox} from './core/navigation';
+import {DoorModel} from './models/door';
+import {createPantry} from './models/pantry';
+import {createRoomKit} from './models/room-kit';
+import {createClue} from './models/clue';
 export type Target={id:string,label:string,kind:string,position:T.Vector3,mesh:T.Object3D,room:string};
 export type Wall={x:number,z:number,w:number,d:number,door?:string,furniture?:boolean,top?:number};
 const names=[['Study','Hall','Living room','Pantry','Kitchen','Scullery','Garden door','Barn passage','Sitting room'],['Nursery','Landing','Bedroom','Bathroom','Gallery','Attic stairs','Linen room','Attic','Trunk room'],['Coal room','Cellar stairs','Preserves','Crates','Shelves','Hidden room','Old boiler','Store room','Locked room']];
 export class World{
- navigation?:NavigationGrid;
- group=new T.Group();colliders:Wall[]=[];targets:Target[]=[];doors=new Map<string,{mesh:T.Mesh,open:boolean,wall:Wall}>();spots:Target[]=[];roomCenters:Point[]=[];materials:Record<string,T.MeshStandardMaterial>={};floor=1;exterior=false;
+ navigation?:NavigationGrid;pantryTemplate?:T.Group;
+ group=new T.Group();colliders:Wall[]=[];targets:Target[]=[];doors=new Map<string,DoorModel>();spots:Target[]=[];roomCenters:Point[]=[];materials:Record<string,T.MeshStandardMaterial>={};floor=1;exterior=false;
  constructor(public scene:T.Scene,public useAssets=true){this.scene.add(this.group);this.createMaterials();}
  createMaterials(){
  const texture=(type:string,kind:string)=>{const c=document.createElement('canvas');c.width=c.height=256;const ctx=c.getContext('2d')!;let seed=729;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};const im=ctx.createImageData(256,256);for(let y=0;y<256;y++)for(let x=0;x<256;x++){const i=(y*256+x)*4;let v=rnd()*18;const seam=type==='wood'?(x%64<2||y%128<2):type==='brick'?(y%32<3||(x+(Math.floor(y/32)%2)*64)%128<3):false;if(type==='wood')v+=Math.sin(y*.5+x*.11)*8;if(seam)v-=40;const base=type==='wood'?[69,58,41]:type==='brick'?[74,66,52]:[95,111,103];for(let k=0;k<3;k++)im.data[i+k]=kind==='normal'?(k===2?255:128+v*.15):kind==='rough'?180+v:base[k]+v;im.data[i+3]=255;}ctx.putImageData(im,0,0);const t=new T.CanvasTexture(c);t.wrapS=t.wrapT=T.RepeatWrapping;t.repeat.set(type==='wood'?2:3,3);if(kind==='color')t.colorSpace=T.SRGBColorSpace;return t;};
@@ -18,10 +22,10 @@ export class World{
  box(w:number,h:number,d:number,x:number,y:number,z:number,mat='wood',parent=this.group,solid=false){const m=new T.Mesh(new T.BoxGeometry(w,h,d),this.materials[mat]);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);if(parent===this.group&&!this.exterior&&(solid||w>=.3&&d>=.3)&&(y+h/2)>.18&&(y-h/2)<1.7){this.colliders.push({x,z,w,d,furniture:true,top:y+h/2});this.navigation=undefined;}return m;}
  registerProp(root:T.Object3D){root.updateWorldMatrix(true,true);root.traverse(o=>{if(!(o instanceof T.Mesh))return;const box=new T.Box3().setFromObject(o),size=box.getSize(new T.Vector3()),center=box.getCenter(new T.Vector3());if(size.x>.3&&size.z>.3&&box.max.y>.18&&box.min.y<1.7)this.colliders.push({x:center.x,z:center.z,w:size.x,d:size.z,furniture:true,top:box.max.y});});this.navigation=undefined;}
  hidingApproach(t:Target){return {x:t.position.x,z:t.position.z-.95};}
- solidAt(x:number,z:number,r=.25,ignoreDoors=false,sight=false){return this.colliders.some(w=>(!w.door||!ignoreDoors&&!this.doors.get(w.door)!.open)&&(!sight||!w.furniture||(w.top??3)>1.25)&&Math.abs(x-w.x)<w.w/2+r&&Math.abs(z-w.z)<w.d/2+r);}
- nav(){return this.navigation??=new NavigationGrid((x,z)=>!this.solidAt(x,z,.27,true));}
+ solidAt(x:number,z:number,r=.25,ignoreDoors=false,sight=false){const solid=this.colliders.some(w=>!w.door&&(!sight||!w.furniture||(w.top??3)>1.25)&&Math.abs(x-w.x)<w.w/2+r&&Math.abs(z-w.z)<w.d/2+r);return solid||!ignoreDoors&&[...this.doors.values()].some(d=>d.blocked({x,z},r));}
+ nav(){return this.navigation??=new NavigationGrid((x,z)=>!this.solidAt(x,z,.27,true)&&![...this.doors.values()].some(d=>d.blocked({x,z},.27,Math.PI/2)));}
  walkablePoint(p:Point){const id=this.nav().nearest(p);return id<0?p:this.nav().point(id);}
- segmentClear(a:Point,b:Point,r=.25){return !this.colliders.some(w=>!w.door&&segmentHitsBox(a,b,w,r));}
+ segmentClear(a:Point,b:Point,r=.25){return !this.colliders.some(w=>!w.door&&segmentHitsBox(a,b,w,r))&&![...this.doors.values()].some(d=>d.blocksRoute(a,b,r));}
  canInteract(a:Point,t:Target){const p=t.kind==='hide'?this.hidingApproach(t):t.position,d=Math.hypot(p.x-a.x,p.z-a.z),length=Math.max(0,d-.6);return this.los(a,{x:a.x+(p.x-a.x)*length/(d||1),z:a.z+(p.z-a.z)*length/(d||1)});}
  clear(){while(this.group.children.length){const o=this.group.children[0];o.traverse(n=>{if(n instanceof T.Mesh)n.geometry.dispose();});this.group.remove(o);}this.navigation=undefined;this.colliders=[];this.targets=[];this.spots=[];this.roomCenters=[];this.doors.clear();}
  roomAt(p:Point){const col=Math.max(0,Math.min(2,Math.round(p.x/8)+1)),row=Math.max(0,Math.min(2,Math.round(p.z/8)+1));return this.exterior?'Elm Wood':names[Math.min(2,this.floor-1)][row*3+col];}
@@ -32,29 +36,30 @@ export class World{
  for(let row=0;row<3;row++)for(let col=0;col<3;col++){const x=(col-1)*8,z=(row-1)*8;this.roomCenters.push({x,z});const index=row*3+col;const room=names[night-1][index];
  this.box(7.85,.025,7.85,x,.003,z,index%2?'wood':'plaster');
  // Furniture hugs the edges, keeping two complete routes through the house.
- if(index%3===0){this.box(2.8,.85,1.3,x-1,.45,z-2.4,'wood');for(let i=0;i<7;i++)this.jar(x-2+i*.38,1,z-2.4);this.box(2.9,.12,1.4,x-1,.95,z-2.4,'cream');}
- if(index%3===1){this.box(2.2,.8,1,x+2,.4,z+1,'cloth');this.box(2.2,.65,.3,x+2,.95,z+1.5,'cloth');this.box(1.1,.5,1.1,x,.25,z,'wood');}
- if(index%3===2){this.box(2.5,.6,1.8,x,.3,z-2,'wood');this.box(2.4,.17,1.7,x,.7,z-2,'cloth');this.box(.8,.2,.5,x-.65,.85,z-2.5,'cream');}
+ const kit=createRoomKit(room,this.materials);kit.position.set(x,0,z);this.group.add(kit);this.registerProp(kit);
  for(let i=0;i<2;i++){this.box(1.15,1.5,.13,x+(i?-2.2:2.2),1.7,z-3.85,'dark');this.box(1,.95,.14,x+(i?-2.2:2.2),1.8,z-3.76,'glass');this.box(.06,1.1,.16,x+(i?-2.2:2.2),1.8,z-3.68,'trim');this.box(1.1,.06,.16,x+(i?-2.2:2.2),1.8,z-3.68,'trim');}
  this.box(.45,.9,.38,x+3,1.8,z+3,'wood');this.box(.18,.35,.15,x+3,1.95,z+2.78,'glow');
  const light=new T.PointLight(0xffbd73,night===3?2.5:5.5,8,2);light.position.set(x+3,2.1,z+2.6);this.group.add(light);
- const spot=this.addTarget(`hide-${night}-${index}`,night===3?'Hide inside the coal crate':index%2?'Hide behind the curtain':'Hide in the wardrobe','hide',x-2.8,z+2.7,room);
- if(index%2){this.box(1.1,2.7,.12,x-2.8,1.4,z+2.48,'cloth',this.group,true);}else{const h=night===3?1.5:2.65;this.box(1.3,h,.08,x-2.8,h/2,z+3.1,'wood',this.group,true);for(const dx of [-.61,.61])this.box(.08,h,.8,x-2.8+dx,h/2,z+2.7,'wood',this.group,true);for(const dx of [-.37,.37])this.box(.56,h,.08,x-2.8+dx,h/2,z+2.3,'wood',this.group,true);this.box(1.3,.08,.8,x-2.8,h,z+2.7,'wood');}this.spots.push(spot);
+ const spot=this.addTarget(`hide-${night}-${index}`,night===3?'Hide inside the coal crate':'Hide in the wardrobe','hide',x-2.8,z+2.7,room);
+ {const h=night===3?1.5:2.65;this.box(1.3,h,.08,x-2.8,h/2,z+3.1,'wood',this.group,true);for(const dx of [-.61,.61])this.box(.08,h,.8,x-2.8+dx,h/2,z+2.7,'wood',this.group,true);for(const dx of [-.37,.37])this.box(.56,h,.08,x-2.8+dx,h/2,z+2.3,'wood',this.group,true);this.box(1.3,.08,.8,x-2.8,h,z+2.7,'wood');}this.spots.push(spot);
+ if(room==='Pantry'){const pantry=this.pantryTemplate?.clone(true)??createPantry(this.materials);pantry.name='wall-pantry';pantry.position.set(x-3.25,0,z);pantry.rotation.y=Math.PI/2;pantry.traverse(o=>{if(o instanceof T.Mesh){const name=o.userData.material as string;if(name&&this.materials[name])o.material=this.materials[name];o.castShadow=true;o.receiveShadow=true;}});this.group.add(pantry);this.registerProp(pantry);}
  // Wall lettering is generated in the local kit.
  this.label(room,x,2.55,z-3.65);
  }
  this.wall(24,.22,0,-12);this.wall(24,.22,0,12);this.wall(.22,24,-12,0);this.wall(.22,24,12,0);
  let k=0;for(const x of [-4,4])for(const z of [-8,0,8]){this.wall(.18,3.05,x,z-2.48);this.wall(.18,3.05,x,z+2.48);this.box(.25,.27,1.9,x,2.85,z,'trim');this.door(`door-${k++}`,x,z,true);}
  for(const z of [-4,4])for(const x of [-8,0,8]){this.wall(3.05,.18,x-2.48,z);this.wall(3.05,.18,x+2.48,z);this.box(1.9,.27,.25,x,2.85,z,'trim');this.door(`door-${k++}`,x,z,false);}
- if(night===1){this.addTarget('pantry-key','Pick up pantry key','item',-9,0,'Pantry');this.addTarget('study-lock','Study lock · pantry key','lock',-8,-4,'Study');this.addTarget('ledger','Photograph the ledger of names','photo',-8,-10,'Study');this.addTarget('clock','Search the old clock','clock',8,-10,'Living room');this.box(.7,2.6,.5,8,1.3,-10.2,'wood');this.clockFace(8,2.1,-9.89);this.addTarget('market-receipt','Read the market receipt','evidence',0,1,'Kitchen');this.addTarget('barn','Leave for the barn · ledger + cellar key','exit',0,10,'Barn passage');}
+ if(night===1){this.addTarget('pantry-key','Pick up pantry key','item',-10.85,0,'Pantry');this.addTarget('study-lock','Study lock · pantry key','lock',-8,-4,'Study');this.addTarget('ledger','Photograph the ledger of names','photo',-8,-10,'Study');this.addTarget('clock','Search the old clock','clock',8,-10,'Living room');this.box(.7,2.6,.5,8,1.3,-10.2,'wood');this.clockFace(8,2.1,-9.89);this.addTarget('market-receipt','Read the market receipt','evidence',0,1,'Kitchen');this.addTarget('barn','Leave for the barn · ledger + cellar key','exit',0,10,'Barn passage');}
  if(night===2){this.addTarget('fuse','Pick up bathroom fuse','item',-8,1,'Bathroom');this.addTarget('scissors','Pick up scissors','item',0,1,'Gallery');this.addTarget('nursery-page','Read the torn nursery page','evidence',-8,-10,'Nursery');this.addTarget('record','Repair the record player · fuse','record',0,6,'Attic');this.addTarget('tape','Play the tape · repaired record player','tape',0,7.3,'Attic');this.addTarget('music-key','Open the sealed trunk · lockpick','lockpick',8,7,'Trunk room');this.addTarget('tin-trap','Tins on a string · scissors or crouch','trap',0,4,'Gallery');this.box(1.7,.12,.03,0,.6,4,'metal');for(let i=0;i<4;i++)this.jar(-.6+i*.4,.45,4);this.addTarget('night-three','Descend to the cellar · tape + music-box key','exit',8,1,'Attic stairs');this.addTarget('tape-label','Read the tape label','evidence',0,8,'Attic');}
  if(night===3){this.addTarget('battery-1','Pick up flashlight battery','battery',-9,-8,'Coal room');this.addTarget('battery-2','Pick up flashlight battery','battery',1,-8,'Cellar stairs');this.addTarget('crowbar','Pick up crowbar','item',-8,1,'Crates');this.addTarget('shelf','Enter the shelf code · evidence deduction','code',0,1,'Shelves');this.addTarget('hidden-door','Pry open the hidden door · crowbar + shelf code','lock',4,0,'Hidden room');this.addTarget('sister-note','Read the second bed note','evidence',8,1,'Hidden room');this.addTarget('supervised','Photograph the supervised messages','photo',0,9,'Store room');this.addTarget('juniper','Unlock Juniper’s room · music-box key','rescue',8,9,'Locked room');this.addTarget('names-list','Read the names on the wall','evidence',-8,9,'Old boiler');}
- for(const t of this.targets.filter(t=>t.kind!=='hide'&&t.kind!=='door')){if(['exit','lock','rescue'].includes(t.kind))continue;this.box(.9,.8,.65,t.position.x,.4,t.position.z,'wood');t.mesh.position.y=1.02;t.position.y=1.02;}
+ for(const t of this.targets.filter(t=>!['hide','door','exit','lock','rescue','clock'].includes(t.kind))){if(t.id==='pantry-key'){t.position.y=1.035;t.mesh.position.y=1.035;continue;}const x=t.position.x,z=t.position.z;this.box(.9,.1,.65,x,.85,z,'wood');for(const dx of [-.35,.35])for(const dz of [-.23,.23])this.box(.1,.8,.1,x+dx,.4,z+dz,'wood');this.box(.8,.16,.07,x,.72,z-.27,'wood');t.mesh.position.y=t.id==='music-key'?1.15:.93;t.position.y=t.mesh.position.y;}
  }
- addTarget(id:string,label:string,kind:string,x:number,z:number,room:string){const mesh=this.box(kind==='hide'?.1:.28,.1,kind==='hide'?.1:.3,x,1,z,['item','battery'].includes(kind)?'metal':'cream');mesh.userData.target=id;const t={id,label,kind,position:new T.Vector3(x,1,z),mesh,room};this.targets.push(t);return t;}
- door(id:string,x:number,z:number,vertical:boolean){const wall={x,z,w:vertical?.17:1.9,d:vertical?1.9:.17,door:id};const m=this.box(wall.w,2.6,wall.d,x,1.3,z,'wood');this.colliders.push(wall);this.doors.set(id,{mesh:m,open:true,wall});m.visible=false;this.targets.push({id,label:'Door · tap E fast / hold E quietly',kind:'door',position:new T.Vector3(x,1.3,z),mesh:m,room:''});}
- toggleDoor(id:string){const d=this.doors.get(id)!;d.open=!d.open;d.mesh.visible=!d.open;return d.open;}
- blocked(x:number,z:number,r=.25){if(this.exterior)return false;return this.colliders.some(w=>(!w.door||!this.doors.get(w.door)!.open)&&Math.abs(x-w.x)<w.w/2+r&&Math.abs(z-w.z)<w.d/2+r);}
+ addTarget(id:string,label:string,kind:string,x:number,z:number,room:string){const marker=['hide','exit','lock','rescue','clock'].includes(kind);const mesh=marker?new T.Group():createClue(id,kind,this.materials);mesh.position.set(x,1,z);this.group.add(mesh);mesh.userData.target=id;const t={id,label,kind,position:new T.Vector3(x,1,z),mesh,room};this.targets.push(t);return t;}
+ door(id:string,x:number,z:number,vertical:boolean){const door=new DoorModel(id,x,z,vertical,this.materials);this.group.add(door.mesh);this.colliders.push(door.wall);this.doors.set(id,door);this.targets.push({id,label:'Door · tap E fast / hold E quietly',kind:'door',position:new T.Vector3(x,1.3,z),mesh:door.mesh,room:''});}
+ setDoor(id:string,open:boolean,instant=false){this.doors.get(id)?.setOpen(open,instant);}
+ toggleDoor(id:string){const d=this.doors.get(id)!;d.setOpen(!d.open);return d.open;}
+ update(dt:number,player?:Point){for(const door of this.doors.values())door.update(dt,player);}
+ blocked(x:number,z:number,r=.25){return !this.exterior&&this.solidAt(x,z,r);}
  canReach(a:Point,b:Point){return !this.exterior&&this.nav().route(a,b,(a,b)=>this.segmentClear(a,b)).length>0;}
  relocationSpots(player:Point){
  if(this.exterior)return [];this.group.updateMatrixWorld(true);
@@ -64,7 +69,8 @@ export class World{
  }
  los(a:Point,b:Point){const d=Math.hypot(b.x-a.x,b.z-a.z);for(let t=.2;t<d;t+=.2){const x=a.x+(b.x-a.x)*t/d,z=a.z+(b.z-a.z)*t/d;if(this.solidAt(x,z,.04,false,true))return false;}return true;}
  path(a:Point,b:Point):Point{
- for(const door of this.doors.values())if(Math.hypot(door.wall.x-a.x,door.wall.z-a.z)<1.4&&!door.open){door.open=true;door.mesh.visible=false;}
+ for(const door of this.doors.values())if(Math.hypot(door.wall.x-a.x,door.wall.z-a.z)<1.6&&!door.open)door.setOpen(true);
+ if([...this.doors.values()].some(d=>d.open&&d.angle<1.25&&Math.hypot(d.wall.x-a.x,d.wall.z-a.z)<1.6&&segmentHitsBox(a,b,d.wall,.25)))return a;
  if(this.segmentClear(a,b))return b;const route=this.nav().route(a,b,(a,b)=>this.segmentClear(a,b));if(!route.length)return a;
  for(let i=Math.min(6,route.length-1);i>=0;i--)if(Math.hypot(route[i].x-a.x,route[i].z-a.z)>.002&&this.segmentClear(a,route[i]))return route[i];return a;
  }

@@ -27,7 +27,7 @@ Story data: `src/story/script.json`. Core mechanics: `src/core/`. World kit: `sr
 
 Run `npm run dev` and open the printed localhost URL in your browser. No ChatGPT hosting or account is needed for local play.
 
-Furniture has solid collision and Marrow routes around it. Press E at a wardrobe to enter; movement locks to its interior until you press E again to leave. A narrow slit limits your view. Sprinting lasts roughly 20 seconds from full stamina, with recovery while walking and faster recovery while standing. Breaking line of sight for about two seconds lets a chase become a search.
+Furniture has solid collision and Marrow routes around it. Press E at a wardrobe to enter; movement locks to its interior until you press E again to leave. There is no hiding overlay or forced squint; mouse look remains free inside the closet. Curtain hiding has been removed. Sprinting lasts roughly 20 seconds from full stamina, with recovery while walking and faster recovery while standing. Breaking line of sight for about two seconds lets a chase become a search.
 
 A compact tutorial appears on first house entry. Settings save immediately and again on Save & return; film grain can be disabled and stays off after reload. Original synthesized music plays quietly in the background. Marrow's face distorts as she approaches, and a catch shows a brief close-up before checkpoint recovery. Reduced flashing/shake mode uses a steady close-up without the lunge.
 
@@ -36,3 +36,7 @@ After the initial 30-second safety period, Marrow has a 22% chance every eight s
 ## Status
 
 This is a playable first build, with placeholder environment and character art. See `VALIDATION.md` for verified mechanics and remaining requirements. The 45–55 minute playtime, 60 fps laptop target, realistic environment pass, baked lightmaps, KTX2 textures, and complete full-run acceptance have not been certified. Chapters can currently be completed faster than the target. No claim is made that the full final brief is complete.
+
+## Local model inspection
+
+Open `http://localhost:5173/?inspect=1` for an enemy-free room walkthrough. Floor/room controls, opposite-corner views, door toggles and a 54-view house model gallery are available. This localhost-only mode does not write save progress. The normal `/` address retains Mother Marrow.

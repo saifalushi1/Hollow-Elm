@@ -1,0 +1,25 @@
+import * as T from 'three';
+export function createRoomKit(room:string,m:Record<string,T.MeshStandardMaterial>){
+ const root=new T.Group();root.name=room+'-furniture';
+ const box=(name:string,w:number,h:number,d:number,x:number,y:number,z:number,mat='wood',parent=root)=>{const mesh=new T.Mesh(new T.BoxGeometry(w,h,d),m[mat]);mesh.name=name;mesh.position.set(x,y,z);mesh.castShadow=mesh.receiveShadow=true;parent.add(mesh);return mesh;};
+ const table=(x:number,z:number,w=1.8,d=.85)=>{box('tabletop',w,.12,d,x,.84,z,'wood');for(const dx of [-w/2+.1,w/2-.1])for(const dz of [-d/2+.1,d/2-.1])box('table-leg',.13,.78,.13,x+dx,.39,z+dz);box('table-apron',w-.12,.16,.08,x,.71,z-d/2+.04);};
+ const bed=(x:number,z:number)=>{box('bed-frame',1.6,.26,2.25,x,.36,z);for(const dx of [-.68,.68])for(const dz of [-.98,.98])box('bed-leg',.12,.25,.12,x+dx,.125,z+dz);box('headboard',1.68,.9,.1,x,.72,z-1.1);box('mattress',1.5,.2,2.1,x,.59,z,'cream');box('folded-blanket',1.48,.08,1.35,x,.73,z+.3,'cloth');box('pillow',.6,.13,.4,x,.77,z-.72,'cream');};
+ const sofa=()=>{box('sofa-base',.83,.45,2.1,2.85,.43,1.7,'cloth');box('sofa-back',.24,.68,2.18,3.16,.88,1.7,'cloth');for(const z of [.65,2.75])box('sofa-arm',.95,.3,.18,2.8,.77,z,'cloth');for(const z of [1.18,2.22])box('seat-cushion',.76,.17,.95,2.7,.74,z,'cloth');for(const x of [2.5,3.1])for(const z of [.8,2.6])box('sofa-foot',.1,.2,.1,x,.1,z);table(.6,1.7,1.15,.65);};
+ const shelf=(x:number,z:number,crates=false)=>{box('shelf-back',.12,2.1,1.9,x,1.05,z);for(const dz of [-.95,.95])box('shelf-side',.7,2.2,.1,x+.26,1.1,z+dz);for(const y of [.15,.85,1.55,2.2])box('shelf-board',.75,.08,2.05,x+.26,y,z);for(const y of [.42,1.12,1.82])for(let i=0;i<5;i++)box(crates?'linen-bundle':'book-spine',crates?.46:.38,crates?.35:.45,.22,x+.27,y,z-.72+i*.35,crates?'cream':i%2?'cloth':'wood');};
+ const sink=()=>{box('sink-cabinet',.76,.85,2.2,-3.12,.45,-.8);box('sink-countertop',.88,.09,2.3,-3.12,.94,-.8,'cream');box('sink-basin',.6,.025,.85,-3.12,1,-.8,'dark');for(const z of [-1.36,-.24]){box('cabinet-door',.055,.68,1.02,-2.7,.45,z);box('cabinet-handle',.06,.14,.035,-2.65,.5,z);}
+ const faucet=new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3([new T.Vector3(-3.4,1,-.8),new T.Vector3(-3.4,1.34,-.8),new T.Vector3(-3.13,1.34,-.8),new T.Vector3(-3.1,1.2,-.8)]),12,.025,6,false),m.metal);faucet.name='faucet';root.add(faucet);};
+ const chest=(x:number,z:number)=>{box('trunk-body',1.3,.62,.8,x,.38,z);box('trunk-lid',1.36,.12,.86,x,.75,z);for(const dx of [-.42,.42]){box('trunk-strap',.08,.68,.83,x+dx,.4,z,'metal');box('trunk-latch',.1,.16,.055,x+dx,.59,z+.46,'metal');}for(const dx of [-.52,.52])for(const dz of [-.3,.3])box('trunk-foot',.12,.1,.12,x+dx,.05,z+dz);};
+ const crate=(x:number,z:number,y=0)=>{box('crate-body',.85,.72,.85,x,y+.36,z);for(const dx of [-.32,.32])box('crate-brace',.08,.76,.9,x+dx,y+.38,z,'trim');};
+ if(['Bedroom','Nursery','Hidden room','Locked room'].includes(room)){bed(2.55,-1.5);if(['Hidden room','Locked room'].includes(room))bed(-1.2,-1.5);if(room==='Nursery')for(let i=0;i<3;i++)box('window-board',1.5,.13,.08,-2.2,1.35+i*.37,-3.7);}
+ else if(['Living room','Sitting room'].includes(room))sofa();
+ else if(['Kitchen','Scullery','Bathroom'].includes(room)){sink();if(room==='Bathroom'){box('bath-bottom',1.5,.15,2.1,2.5,.2,-1.2,'cream');for(const x of [1.8,3.2])box('bath-side',.14,.56,2.1,x,.5,-1.2,'cream');for(const z of [-2.2,-.2])box('bath-end',1.4,.56,.14,2.5,.5,z,'cream');}else{box('stove',.8,.9,.85,2.8,.45,-1.9,'metal');box('oven-front',.04,.5,.62,2.36,.4,-1.9,'dark');for(const dz of [-.22,.22]){const ring=new T.Mesh(new T.TorusGeometry(.13,.025,5,16),m.dark);ring.rotation.x=Math.PI/2;ring.position.set(2.8,.92,-1.9+dz);root.add(ring);}}}
+ else if(room==='Study'){table(-2.7,-1.2,1.2,1.8);shelf(2.8,1.7);}
+ else if(['Hall','Landing','Gallery','Garden door','Barn passage'].includes(room)){box('bench-seat',2.2,.13,.65,1.9,.62,2.8);for(const x of [.95,2.85])for(const z of [2.58,3.02])box('bench-leg',.13,.56,.13,x,.28,z);if(room==='Gallery')shelf(-3.1,-1.1);}
+ else if(room==='Linen room')shelf(2.7,1.4,true);
+ else if(['Attic stairs','Cellar stairs'].includes(room)){for(let i=0;i<6;i++)box('stair-tread',1.3,.2+i*.18,.33,2.7,.1+i*.09,-2.6+i*.32);box('stair-rail-post',.09,1.7,.09,3.4,.85,-1.8);}
+ else if(['Attic','Trunk room'].includes(room)){chest(2.6,1.7);shelf(-3.1,-1.3);}
+ else if(room==='Old boiler'){const boiler=new T.Mesh(new T.CylinderGeometry(.58,.58,1.65,20),m.metal);boiler.name='boiler-tank';boiler.position.set(2.7,.98,-1.5);root.add(boiler);for(const dx of [-.4,.4])box('boiler-foot',.16,.25,.5,2.7+dx,.125,-1.5,'metal');box('flue',.22,1.5,.22,2.7,2.5,-1.5,'metal');}
+ else if(['Coal room','Crates','Store room'].includes(room)){for(let i=0;i<3;i++)crate(2.5,-2.4+i*.9);crate(2.5,-1.5,.72);}
+ else if(['Preserves','Shelves'].includes(room))shelf(2.8,1.6);
+ return root;
+}

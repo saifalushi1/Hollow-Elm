@@ -19,3 +19,10 @@
 - Catches return to the same night checkpoint and retain items. Night reset counters do not yet distinguish consecutive failed nights from successful chapters.
 
 This document intentionally separates implemented mechanics from final production acceptance.
+
+## October 15 model pass
+
+- Rendered and visually inspected all 27 interior rooms from two corners (54 views), with closed and open door models and Marrow disabled. Checked the exterior separately.
+- Rebuilt the pantry as a complete wall cabinet with feet, carcass, countertop, drawers, cupboard panels, handles, shelves and twelve lidded jars. Replaced generic room furniture and clue blocks with purpose-specific procedural models.
+- Enemy-free automated traversal uses real geometry, animated doors and swept collision to reach every clue and hiding spot across all three floors. This is a model/navigation audit, not a timed full story playthrough.
+- Regression suite: 34 tests; production build passes. Door animation/collision, pantry completeness, finite mesh geometry, connected navigation, hiding, story gates, settings, catches and scares covered.

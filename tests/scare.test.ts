@@ -31,14 +31,14 @@ test('exhausted scare budget and hiding prevent a random rush',()=>{
 test('every relocation spot on every floor is clear and Marrow can return through closed doors',()=>{
  const world=new World(new T.Scene(),false),player={x:-8,z:0};
  for(let night=1;night<=3;night++){
- world.build(night);for(const door of world.doors.values()){door.open=false;door.mesh.visible=true;}
+ world.build(night);for(const door of world.doors.values()){door.setOpen(false,true);}
  const positions=world.relocationSpots(player);a.ok(positions.length>0);
  for(const position of positions){
  a.ok(distance(position,player)>=10);a.equal(world.blocked(position.x,position.z,.35),false);a.ok(world.canReach(position,player));
- for(const door of world.doors.values()){door.open=false;door.mesh.visible=true;}
+ for(const door of world.doors.values()){door.setOpen(false,true);}
  const ai=new MotherAI(world.roomCenters);ai.position={...position};ai.target={...player};ai.state='Investigate';ai.grace=0;
  let returned=false;
- for(let frame=0;frame<1800;frame++){ai.tick(.05,player,night,false,new NoiseSystem(),(a,b)=>world.los(a,b),(a,b)=>world.path(a,b),[]);if(distance(ai.position,player)<.7){returned=true;break;}}
+ for(let frame=0;frame<1800;frame++){world.update(.05);ai.tick(.05,player,night,false,new NoiseSystem(),(a,b)=>world.los(a,b),(a,b)=>world.path(a,b),[]);if(distance(ai.position,player)<.7){returned=true;break;}}
  a.ok(returned,`Night ${night}: stranded at ${JSON.stringify(ai.position)} from ${JSON.stringify(position)}`);
  }
  }

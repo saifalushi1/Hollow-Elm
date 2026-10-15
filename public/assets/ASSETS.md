@@ -18,3 +18,5 @@ All assets are bundled and require no external runtime requests. No assets, name
 Third-party code: Three.js (MIT), Vite (MIT), TypeScript (Apache 2.0), meshoptimizer (MIT), glTF Transform (MIT), tsx (MIT). See installed package license files and lockfile for exact dependency versions.
 
 Limitations: textures use bundled JPG rather than KTX2. Lightmaps are not baked. Fog is exponential rather than a true volumetric pass. The current build does not meet the brief's final realistic asset quality requirement; the placeholder rig is explicitly permitted by the brief. Asset compression is applied to GLB geometry and animation.
+
+The preserves kit now contains the complete original procedural pantry cabinet (carcass, feet, doors, drawers, shelves, jars and lids). Room furniture, hinged paneled doors and recognizable clue props are original procedural meshes in `src/models/`.
